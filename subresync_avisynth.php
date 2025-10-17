@@ -37,7 +37,7 @@ function addTimeLineBlock(&$timeLineBlocks, $fps, $from_frames, $sync_frames)
 	return count($timeLineBlocks);
 }
 
-function parse_avs($input_avs)
+function parse_avs($input_avs, $inverted)
 {
 	$timeLineBlocks = [];
 
@@ -68,7 +68,7 @@ function parse_avs($input_avs)
 		}
 		else if (str_contains($line, "Trim"))
 		{
-			if (!empty($timeLineBlocks)) die("Trim: has to be before any Frame commands, error".CRLF);
+			if (!empty($timeLineBlocks)) die("Trim: has to be before any Frame commands or cannot be used with BlankClip, error".CRLF);
 			if ($fps === 0) die("Trim: AssumeFPS has to be before any commands, error".CRLF);
 
 			$line = str_replace(" ", "", $line);
@@ -78,9 +78,36 @@ function parse_avs($input_avs)
 			$first_frame = (int)$args[0];
 			$last_frame = (int)$args[1];
 
-			$numTimeLineBlocks = addTimeLineBlock($timeLineBlocks, $fps, 0, $first_frame);
+			if ($inverted === false)
+			{
+				$numTimeLineBlocks = addTimeLineBlock($timeLineBlocks, $fps, 0, -$first_frame);
+			}
+			else
+			{
+				$numTimeLineBlocks = addTimeLineBlock($timeLineBlocks, $fps, 0, $first_frame);
+			}
 
 			if ($last_frame !== 0) echo "Trim: last_frame set, ignoring".CRLF;
+		}
+		else if (str_contains($line, "BlankClip"))
+		{
+			if (!empty($timeLineBlocks)) die("BlankClip: has to be before any Frame commands or cannot be used with Trim, error".CRLF);
+			if ($fps === 0) die("BlankClip: AssumeFPS has to be before any commands, error".CRLF);
+
+			$line = str_replace(" ", "", $line);
+			$pos = strpos($line, "BlankClip") + strlen("BlankClip");
+			$args = explode(",", substr($line, $pos + 1, -1));
+
+			$frames = (int)$args[0];
+
+			if ($inverted === false)
+			{
+				$numTimeLineBlocks = addTimeLineBlock($timeLineBlocks, $fps, 0, $frames);
+			}
+			else
+			{
+				$numTimeLineBlocks = addTimeLineBlock($timeLineBlocks, $fps, 0, -$frames);
+			}
 		}
 		else if (str_contains($line, "DeleteFrame") || str_contains($line, "DuplicateFrame"))
 		{
@@ -115,11 +142,25 @@ function parse_avs($input_avs)
 			{
 				if ($last_frame_action === "Delete")
 				{
-					addTimeLineBlock($timeLineBlocks, $fps, $last_frame, $last_frame_count);
+					if ($inverted === false)
+					{
+						addTimeLineBlock($timeLineBlocks, $fps, $last_frame, -$last_frame_count);
+					}
+					else
+					{
+						addTimeLineBlock($timeLineBlocks, $fps, $last_frame, $last_frame_count);
+					}
 				}
 				else if ($last_frame_action === "Duplicate")
 				{
-					addTimeLineBlock($timeLineBlocks, $fps, $last_frame, -$last_frame_count);
+					if ($inverted === false)
+					{
+						addTimeLineBlock($timeLineBlocks, $fps, $last_frame, $last_frame_count);
+					}
+					else
+					{
+						addTimeLineBlock($timeLineBlocks, $fps, $last_frame, -$last_frame_count);
+					}
 				}
 
 				$last_frame_action = $frame_action;
@@ -131,11 +172,25 @@ function parse_avs($input_avs)
 		{
 			if ($last_frame_action === "Delete")
 			{
-				addTimeLineBlock($timeLineBlocks, $fps, $last_frame, $last_frame_count);
+				if ($inverted === false)
+				{
+					addTimeLineBlock($timeLineBlocks, $fps, $last_frame, -$last_frame_count);
+				}
+				else
+				{
+					addTimeLineBlock($timeLineBlocks, $fps, $last_frame, $last_frame_count);
+				}
 			}
 			else if ($last_frame_action === "Duplicate")
 			{
-				addTimeLineBlock($timeLineBlocks, $fps, $last_frame, -$last_frame_count);
+				if ($inverted === false)
+				{
+					addTimeLineBlock($timeLineBlocks, $fps, $last_frame, $last_frame_count);
+				}
+				else
+				{
+					addTimeLineBlock($timeLineBlocks, $fps, $last_frame, -$last_frame_count);
+				}
 			}
 
 			break;
@@ -152,6 +207,9 @@ if ($argc === 1)
 
 $input_avs = file($argv[1], FILE_IGNORE_NEW_LINES);
 
-$timeLineBlocks = parse_avs($input_avs);
+// $inverted = true;
+$inverted = false;
+
+$timeLineBlocks = parse_avs($input_avs, $inverted);
 
 file_put_contents($argv[1].".json", json_encode($timeLineBlocks));
