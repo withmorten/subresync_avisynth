@@ -41,6 +41,8 @@ function parse_avs($input_avs, $inverted)
 {
 	$timeLineBlocks = [];
 
+	$reference_clip = "";
+
 	$fps = 0;
 
 	$last_frame = -1;
@@ -51,7 +53,17 @@ function parse_avs($input_avs, $inverted)
 	foreach ($input_avs as $line)
 	{
 		if ($line === "") continue;
-		if (str_starts_with($line, "blu=")) continue;
+
+		if ($reference_clip === "")
+		{
+			if (!str_contains($line, "=")) die("reference_clip must be assigned in the first line".CRLF);
+
+			$split = explode("=", $line);
+
+			$reference_clip = $split[0];
+		}
+
+		if (str_starts_with($line, "$reference_clip=")) continue;
 
 		if (str_contains($line, "AssumeFPS"))
 		{
