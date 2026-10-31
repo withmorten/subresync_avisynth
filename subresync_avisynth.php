@@ -54,6 +54,8 @@ function parse_avs($input_avs, $inverted)
 	{
 		if ($line === "") continue;
 
+		if (str_starts_with($line, "#")) continue;
+
 		if ($reference_clip === "")
 		{
 			if (!str_contains($line, "=")) die("reference_clip must be assigned in the first line".CRLF);
